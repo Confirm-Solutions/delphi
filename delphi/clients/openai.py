@@ -7,17 +7,13 @@ from ..logger import logger
 from .client import Client, Response
 from .types import ChatFormatRequest
 
-# Preferred provider routing arguments.
-# Change depending on what model you'd like to use.
-PROVIDER = {"order": ["Together", "DeepInfra"]}
 
-
-class OpenRouter(Client):
+class OpenAI(Client):
     def __init__(
         self,
         model: str,
         api_key: str | None = None,
-        base_url: str = "https://openrouter.ai/api/v1/chat/completions",
+        base_url: str = "https://api.openai.com/v1/chat/completions",
         max_tokens: int = 3000,
         temperature: float = 1.0,
     ):
@@ -30,7 +26,6 @@ class OpenRouter(Client):
         self.temperature = temperature
         timeout_config = httpx.Timeout(5.0)
         self.client = httpx.AsyncClient(timeout=timeout_config)
-        print("WARNING: We currently don't support logprobs for OpenRouter")
 
     def postprocess(self, response: httpx.Response) -> Response:
         response_json = response.json()

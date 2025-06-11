@@ -120,6 +120,8 @@ class RunConfig(Serializable):
     directory containing their weights. Models must be loadable with sparsify
     or gemmascope."""
 
+    sparse_model_source: Literal["sparsify", "saelens"] = "sparsify"
+
     hookpoints: list[str] = list_field()
     """list of model hookpoints to attach sparse models to."""
 

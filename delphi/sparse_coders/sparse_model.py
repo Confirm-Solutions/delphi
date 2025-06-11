@@ -4,9 +4,10 @@ import torch
 import torch.nn as nn
 from transformers import PreTrainedModel
 
-from delphi.config import RunConfig
+from delphi.delphi.config import RunConfig
 
 from .custom.gemmascope import load_gemma_autoencoders
+from .load_saelens import load_saelens_hooks
 from .load_sparsify import (
     PotentiallyWrappedSparseCoder,
     load_sparsify_hooks,
@@ -29,9 +30,23 @@ def load_hooks_sparse_coders(
     Returns:
         dict[str, Callable]: A dictionary mapping hookpoints to sparse coders.
     """
+    transcode = False
 
     # Add SAE hooks to the model
-    if "gemma" not in run_cfg.sparse_model:
+    if run_cfg.sparse_model_source == "saelens":
+        # TODO support multiple hookpoints with zipped checkpoint/hook point ids
+        assert (
+            len(run_cfg.hookpoints) == 1
+        ), "SAELens only supports one hookpoint for now"
+        hookpoint_to_sparse_encode = load_saelens_hooks(
+            model,
+            run_cfg.sparse_model,
+            run_cfg.hookpoints[0],
+        )
+    elif (
+        "gemma" not in run_cfg.sparse_model
+        and run_cfg.sparse_model_source == "sparsify"
+    ):
         hookpoint_to_sparse_encode, transcode = load_sparsify_hooks(
             model,
             run_cfg.sparse_model,
@@ -67,7 +82,6 @@ def load_hooks_sparse_coders(
             dtype=model.dtype,
             device=model.device,
         )
-        transcode = False
     # throw an error if the dictionary is empty
     if not hookpoint_to_sparse_encode:
         raise ValueError("No sparse coders loaded")

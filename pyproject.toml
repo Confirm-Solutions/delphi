@@ -3,7 +3,7 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "eai-delphi"
+name = "delphi"
 version = "0.0.2"
 description = "Automated Interpretability"
 readme = "README.md"
@@ -22,7 +22,6 @@ dependencies = [
     "blobfile",
     "bitsandbytes",
     "flask",
-    "vllm<0.8.0",
     "aiofiles",
     "sentence_transformers",
     "anyio>=4.8.0",
@@ -42,6 +41,9 @@ visualize = [
     "plotly>=5.0.0rc2",
     "pandas",
     "ipywidgets"
+]
+vllm = [
+    "vllm<0.8.0"
 ]
 
 [tool.pyright]

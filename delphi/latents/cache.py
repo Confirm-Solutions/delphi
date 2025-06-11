@@ -12,7 +12,7 @@ from torch import Tensor
 from tqdm import tqdm
 from transformers import PreTrainedModel
 
-from delphi.config import CacheConfig
+from delphi.delphi.config import CacheConfig
 from delphi.latents.collect_activations import collect_activations
 
 location_tensor_type = Int[Tensor, "batch_sequence 3"]
@@ -293,6 +293,8 @@ class LatentCache:
                                 self.hookpoint_firing_counts[
                                     hookpoint
                                 ] += firing_counts.cpu()
+
+                        breakpoint()
 
                 # Update the progress bar
                 pbar.update(1)
