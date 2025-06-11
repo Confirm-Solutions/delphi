@@ -294,8 +294,6 @@ class LatentCache:
                                     hookpoint
                                 ] += firing_counts.cpu()
 
-                        breakpoint()
-
                 # Update the progress bar
                 pbar.update(1)
                 pbar.set_postfix({"Total Tokens": f"{total_tokens:,}"})
