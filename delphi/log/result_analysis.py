@@ -26,14 +26,27 @@ def plot_firing_vs_f1(
 def import_plotly():
     """Import plotly with mitigiation for MathJax bug."""
     try:
+        import kaleido  # type: ignore
         import plotly.express as px  # type: ignore
         import plotly.io as pio  # type: ignore
-    except ImportError:
+    except ImportError as e:
+        if "kaleido" in str(e):
+            raise ImportError(
+                "Kaleido is not installed.\n"
+                "Please install it using `pip install -U kaleido`, "
+                "or install the `[visualize]` extra."
+            )
         raise ImportError(
             "Plotly is not installed.\n"
             "Please install it using `pip install plotly`, "
             "or install the `[visualize]` extra."
         )
+
+    # Initialize kaleido if not already initialized
+    if not hasattr(pio, "kaleido") or pio.kaleido is None:
+        pio.kaleido = kaleido.Kaleido()
+
+    # Set mathjax to None to avoid rendering issues
     pio.kaleido.scope.mathjax = None  # https://github.com/plotly/plotly.py/issues/3469
     return px
 
@@ -348,10 +361,8 @@ def log_results(
         fractions_failed = [
             score_type_summary["failed_count"]
             / (
-                (
-                    score_type_summary["total_examples"]
-                    + score_type_summary["failed_count"]
-                )
+                score_type_summary["total_examples"]
+                + score_type_summary["failed_count"]
             )
         ]
         print(
@@ -378,6 +389,6 @@ def log_results(
         )
 
         print("\nClass Distribution:")
-        print(f"""Positives: {score_type_summary['total_positives'].sum():.0f}""")
-        print(f"""Negatives: {score_type_summary['total_negatives'].sum():.0f}""")
+        print(f"""Positives: {score_type_summary["total_positives"].sum():.0f}""")
+        print(f"""Negatives: {score_type_summary["total_negatives"].sum():.0f}""")
         print(f"Total: {score_type_summary['total_examples'].sum():.0f}")

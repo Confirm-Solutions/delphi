@@ -5,9 +5,8 @@ from torch import Tensor, nn
 from transformers import PreTrainedModel
 
 
-# TODO: implement saelens backend as well
 @contextmanager
-def collect_activations(
+def collect_activations(  # type: ignore
     model: PreTrainedModel, hookpoints: list[str], transcode: bool = False
 ):
     """

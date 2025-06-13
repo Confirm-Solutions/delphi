@@ -7,6 +7,7 @@ import torch
 from sparsify import SparseCoder, SparseCoderConfig
 from sparsify.sparse_coder import EncoderOutput
 from torch import Tensor
+from transformer_lens import HookedTransformer
 from transformers import PreTrainedModel
 
 
@@ -110,7 +111,7 @@ def load_sparsify_sparse_coders(
 
 
 def load_sparsify_hooks(
-    model: PreTrainedModel,
+    model: PreTrainedModel | HookedTransformer,
     name: str,
     hookpoints: list[str],
     device: str | torch.device | None = None,
@@ -131,7 +132,7 @@ def load_sparsify_hooks(
     Returns:
         dict[str, Callable]: A dictionary mapping hookpoints to encode functions.
     """
-    device = model.device or "cpu"
+    device = str(model.device) if model.device is not None else "cpu"
     sparse_model_dict = load_sparsify_sparse_coders(
         name,
         hookpoints,

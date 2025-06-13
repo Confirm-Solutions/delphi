@@ -10,9 +10,10 @@ from jaxtyping import Float, Int
 from safetensors.numpy import save_file
 from torch import Tensor
 from tqdm import tqdm
+from transformer_lens import HookedTransformer
 from transformers import PreTrainedModel
 
-from delphi.delphi.config import CacheConfig
+from delphi.config import CacheConfig
 from delphi.latents.collect_activations import collect_activations
 
 location_tensor_type = Int[Tensor, "batch_sequence 3"]
@@ -137,7 +138,9 @@ class InMemoryCache:
                 self.tokens_batches[module_path], dim=0
             )
 
-    def get_nonzeros(self, latents: latent_tensor_type, module_path: str) -> tuple[
+    def get_nonzeros(
+        self, latents: latent_tensor_type, module_path: str
+    ) -> tuple[
         location_tensor_type,
         activation_tensor_type,
     ]:
@@ -181,8 +184,8 @@ class LatentCache:
 
     def __init__(
         self,
-        model: PreTrainedModel,
-        hookpoint_to_sparse_encode: dict[str, Callable],
+        model: PreTrainedModel | HookedTransformer,
+        hookpoint_to_sparse_encode: dict[str, Callable[[Tensor], Tensor]],
         batch_size: int,
         transcode: bool = False,
         filters: dict[str, Float[Tensor, "indices"]] | None = None,
@@ -227,7 +230,7 @@ class LatentCache:
         max_batches = n_tokens // tokens.shape[1]
         tokens = tokens[:max_batches]
 
-        n_mini_batches = len(tokens) // self.batch_size
+        n_mini_batches = len(tokens) // min(len(tokens), self.batch_size)
 
         token_batches = [
             tokens[self.batch_size * i : self.batch_size * (i + 1), :]
@@ -263,36 +266,53 @@ class LatentCache:
 
         total_tokens = 0
         total_batches = len(token_batches)
+
         tokens_per_batch = token_batches[0].numel()
         with tqdm(total=total_batches, desc="Caching latents") as pbar:
             for batch_number, batch in enumerate(token_batches):
                 total_tokens += tokens_per_batch
 
                 with torch.no_grad():
-                    with collect_activations(
-                        self.model,
-                        list(self.hookpoint_to_sparse_encode.keys()),
-                        self.transcode,
-                    ) as activations:
-                        self.model(batch.to(self.model.device))
+                    activations = {}
+                    if isinstance(self.model, PreTrainedModel):
+                        with collect_activations(
+                            self.model,
+                            list(self.hookpoint_to_sparse_encode.keys()),
+                            self.transcode,
+                        ) as activations:
+                            self.model(batch.to(self.model.device))
+                    elif isinstance(self.model, HookedTransformer):
 
-                        for hookpoint, latents in activations.items():
-                            sae_latents = self.hookpoint_to_sparse_encode[hookpoint](
-                                latents
+                        def _save_hook(activation, hook):  # type: ignore
+                            activations[hook.name] = activation
+
+                        _device = next(self.model.parameters()).device
+                        self.model.run_with_hooks(
+                            batch.to(_device),  # type: ignore
+                            fwd_hooks=[
+                                (hookpoint, _save_hook)
+                                for hookpoint in self.hookpoint_to_sparse_encode.keys()
+                            ],
+                            reset_hooks_end=True,
+                        )
+
+                    for hookpoint, latents in activations.items():
+                        sae_latents = self.hookpoint_to_sparse_encode[hookpoint](
+                            latents
+                        )
+                        self.cache.add(sae_latents, batch, batch_number, hookpoint)
+                        firing_counts = (sae_latents > 0).sum((0, 1))
+                        if self.width is None:
+                            self.width = sae_latents.shape[2]
+
+                        if hookpoint not in self.hookpoint_firing_counts:
+                            self.hookpoint_firing_counts[hookpoint] = (
+                                firing_counts.cpu()
                             )
-                            self.cache.add(sae_latents, batch, batch_number, hookpoint)
-                            firing_counts = (sae_latents > 0).sum((0, 1))
-                            if self.width is None:
-                                self.width = sae_latents.shape[2]
-
-                            if hookpoint not in self.hookpoint_firing_counts:
-                                self.hookpoint_firing_counts[hookpoint] = (
-                                    firing_counts.cpu()
-                                )
-                            else:
-                                self.hookpoint_firing_counts[
-                                    hookpoint
-                                ] += firing_counts.cpu()
+                        else:
+                            self.hookpoint_firing_counts[hookpoint] += (
+                                firing_counts.cpu()
+                            )
 
                 # Update the progress bar
                 pbar.update(1)

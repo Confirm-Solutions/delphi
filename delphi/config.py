@@ -97,6 +97,9 @@ class CacheConfig(Serializable):
     n_splits: int = 5
     """Number of splits to divide .safetensors into."""
 
+    streaming: bool = False
+    """Stream dataset"""
+
 
 @dataclass
 class RunConfig(Serializable):
@@ -119,6 +122,10 @@ class RunConfig(Serializable):
     """Name of sparse models associated with the model to explain, or path to
     directory containing their weights. Models must be loadable with sparsify
     or gemmascope."""
+
+    sparse_models: list[str] = list_field()
+    """Names of the sparse models to load. If not provided, the sparse model
+    will be loaded from the sparse_model path."""
 
     sparse_model_source: Literal["sparsify", "saelens"] = "sparsify"
 

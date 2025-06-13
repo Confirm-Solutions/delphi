@@ -2,9 +2,10 @@ from collections.abc import Callable
 
 import torch
 import torch.nn as nn
+from transformer_lens import HookedTransformer
 from transformers import PreTrainedModel
 
-from delphi.delphi.config import RunConfig
+from delphi.config import RunConfig
 
 from .custom.gemmascope import load_gemma_autoencoders
 from .load_saelens import load_saelens_hooks
@@ -16,10 +17,10 @@ from .load_sparsify import (
 
 
 def load_hooks_sparse_coders(
-    model: PreTrainedModel,
+    model: PreTrainedModel | HookedTransformer,
     run_cfg: RunConfig,
     compile: bool = False,
-) -> tuple[dict[str, Callable], bool]:
+) -> tuple[dict[str, Callable[[torch.Tensor], torch.Tensor]], bool]:
     """
     Load sparse coders for specified hookpoints.
 
@@ -34,14 +35,10 @@ def load_hooks_sparse_coders(
 
     # Add SAE hooks to the model
     if run_cfg.sparse_model_source == "saelens":
-        # TODO support multiple hookpoints with zipped checkpoint/hook point ids
-        assert (
-            len(run_cfg.hookpoints) == 1
-        ), "SAELens only supports one hookpoint for now"
         hookpoint_to_sparse_encode = load_saelens_hooks(
             model,
-            run_cfg.sparse_model,
-            run_cfg.hookpoints[0],
+            run_cfg.sparse_models,
+            run_cfg.hookpoints,
         )
     elif (
         "gemma" not in run_cfg.sparse_model
@@ -54,6 +51,9 @@ def load_hooks_sparse_coders(
             compile=compile,
         )
     else:
+        assert isinstance(model, PreTrainedModel), (
+            "Model must be a PreTrainedModel for gemma"
+        )
         # model path will always be of the form google/gemma-scope-<size>-pt-<type>/
         # where <size> is the size of the model and <type> is either res or mlp
         model_path = "google/" + run_cfg.sparse_model.split("/")[1]
