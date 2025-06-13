@@ -65,7 +65,7 @@ def load_saelens_hooks(
     Returns:
         dict[str, Callable[[Tensor], Tensor]]: Mapping from resolved hookpoint to encode function.
     """  # noqa: E501
-    resolved_device = getattr(model, "device", None) or device or "cpu"
+    resolved_device = next(model.parameters()).device
     sae_dict = load_saelens_sparse_coders(names, hookpoints, resolved_device)
     hookpoint_to_sparse_encode: dict[str, Callable[[Tensor], Tensor]] = {}
     for hookpoint, sae in sae_dict.items():

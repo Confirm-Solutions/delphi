@@ -1,5 +1,5 @@
-import asyncio
 import os
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 from typing import Callable
@@ -83,14 +83,12 @@ def create_neighbours(
     )
 
     for hookpoint in hookpoints:
-
         if constructor_cfg.neighbours_type == "co-occurrence":
             neighbour_calculator = NeighbourCalculator(
                 cache_dir=latents_path / hookpoint, number_of_neighbours=250
             )
 
         elif constructor_cfg.neighbours_type == "decoder_similarity":
-
             neighbour_calculator = NeighbourCalculator(
                 autoencoder=saes[hookpoint].to("cuda"), number_of_neighbours=250
             )
@@ -376,8 +374,12 @@ async def run(
     run_cfg: RunConfig,
 ):
     base_path = Path.cwd() / "results"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
     if run_cfg.name:
-        base_path = base_path / run_cfg.name
+        base_path = base_path / f"{run_cfg.name}_{timestamp}"
+    else:
+        base_path = base_path / f"run_{timestamp}"
 
     base_path.mkdir(parents=True, exist_ok=True)
 
